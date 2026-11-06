@@ -1,21 +1,42 @@
 import fs from "node:fs";
+import path from "node:path";
 
-import { eq } from "drizzle-orm";
+import { INSTANCES_DIR } from "./paths";
 
-import { store } from "./client";
-import { instances } from "./schema";
-import type { InstanceRow, NewInstanceRow } from "./schema";
+export interface InstanceRow {
+  key: string;
+  pid: number;
+  tty: string | null;
+  socket: string;
+  cdpPort: number | null;
+  url: string;
+  title: string;
+  favicon: string | null;
+  loading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  findMatches: { active: number; total: number } | null;
+  zoom: number;
+  tabs: unknown;
+  viewport: { width: number; height: number } | null;
+  splitDir: "right" | "left" | "down" | "up" | null;
+  parentTty: string | null;
+  startedAt: number;
+}
+
+export type NewInstanceRow = InstanceRow;
+
+function instanceFile(key: string): string {
+  return path.join(INSTANCES_DIR, `${key.replace(/[^\w-]/g, "_")}.json`);
+}
 
 export async function upsertInstance(row: NewInstanceRow): Promise<void> {
-  const { key, ...rest } = row;
-  await store()
-    .db.insert(instances)
-    .values(row)
-    .onConflictDoUpdate({ target: instances.key, set: rest });
+  fs.mkdirSync(INSTANCES_DIR, { recursive: true });
+  fs.writeFileSync(instanceFile(row.key), `${JSON.stringify(row)}\n`);
 }
 
 export async function removeInstance(key: string): Promise<void> {
-  await store().db.delete(instances).where(eq(instances.key, key));
+  fs.rmSync(instanceFile(key), { force: true });
 }
 
 function alive(pid: number): boolean {
@@ -27,15 +48,32 @@ function alive(pid: number): boolean {
   }
 }
 
+function readInstance(file: string): InstanceRow | null {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8")) as InstanceRow;
+  } catch {
+    return null;
+  }
+}
+
 export async function listInstances(): Promise<InstanceRow[]> {
-  const rows = await store().db.select().from(instances);
+  let names: string[];
+  try {
+    names = fs.readdirSync(INSTANCES_DIR);
+  } catch {
+    return [];
+  }
   const live: InstanceRow[] = [];
-  for (const row of rows) {
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    const file = path.join(INSTANCES_DIR, name);
+    const row = readInstance(file);
+    if (!row) continue;
     if (alive(row.pid)) {
       live.push(row);
       continue;
     }
-    await removeInstance(row.key);
+    fs.rmSync(file, { force: true });
     fs.rmSync(row.socket, { force: true });
   }
   return live.sort((a, b) => a.startedAt - b.startedAt);

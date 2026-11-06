@@ -1,18 +1,16 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { DuckDBConnection } from "@duckdb/node-api";
 
 export interface Migration {
   id: string;
   statements: string[];
 }
 
-export function migrate(sqlite: DatabaseSync, migrations: Migration[]): void {
-  sqlite.exec(
-    "CREATE TABLE IF NOT EXISTS migration (id TEXT PRIMARY KEY, time_completed INTEGER NOT NULL)",
+export async function migrate(connection: DuckDBConnection, migrations: Migration[]): Promise<void> {
+  await connection.run(
+    "CREATE TABLE IF NOT EXISTS migration (id VARCHAR PRIMARY KEY, time_completed BIGINT NOT NULL)",
   );
   const applied = new Set(
-    (sqlite.prepare("SELECT id FROM migration").all() as Array<{ id: string }>).map(
-      (row) => row.id,
-    ),
+    (await connection.runAndReadAll("SELECT id FROM migration")).getRowObjects().map((row) => String(row.id)),
   );
   const known = new Set(migrations.map((migration) => migration.id));
   const unknown = [...applied].filter((id) => !known.has(id));
@@ -21,16 +19,15 @@ export function migrate(sqlite: DatabaseSync, migrations: Migration[]): void {
       `database was migrated by a newer version of the app (unknown migrations: ${unknown.join(", ")}); refusing to open it`,
     );
   }
-  const record = sqlite.prepare("INSERT INTO migration (id, time_completed) VALUES (?, ?)");
   for (const migration of migrations) {
     if (applied.has(migration.id)) continue;
-    sqlite.exec("BEGIN");
+    await connection.run("BEGIN TRANSACTION");
     try {
-      for (const statement of migration.statements) sqlite.exec(statement);
-      record.run(migration.id, Date.now());
-      sqlite.exec("COMMIT");
+      for (const statement of migration.statements) await connection.run(statement);
+      await connection.run("INSERT INTO migration (id, time_completed) VALUES (?, ?)", [migration.id, Date.now()]);
+      await connection.run("COMMIT");
     } catch (error) {
-      sqlite.exec("ROLLBACK");
+      await connection.run("ROLLBACK");
       throw error;
     }
   }

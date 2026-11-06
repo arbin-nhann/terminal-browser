@@ -5,7 +5,7 @@ import path from "node:path";
 import { app } from "electron";
 
 // why is this defined in pixel store?
-import { DAEMON_SOCKET } from "shared";
+import { DAEMON_SOCKET, openProfileAndLoad } from "shared";
 import { createSession } from "./session/session";
 import type { SessionHandle } from "./session/session";
 import { servePages } from "./pages/scheme";
@@ -38,6 +38,7 @@ export async function runDaemon(cdpPort: number | null): Promise<void> {
     app.exit(3);
     return;
   }
+  await openProfileAndLoad();
   fs.mkdirSync(path.dirname(DAEMON_SOCKET), { recursive: true });
   fs.rmSync(DAEMON_SOCKET, { force: true });
 

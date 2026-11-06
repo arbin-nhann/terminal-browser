@@ -12,13 +12,13 @@ export {
   SHORTCUTS_FILE,
   ensureDataDir,
 } from "./paths";
-export { openStore, store } from "./client";
-export type { Store } from "./client";
-export { appState, instances, settings, sitePermissions } from "./schema";
-export type { DevtoolsDock, InstanceRow, NewInstanceRow, SettingsRow, SitePermissionRow } from "./schema";
+export { openProfile, profileStore } from "./client";
+export type { ProfileStore } from "./client";
+export { openProfileAndLoad } from "./profile";
 export { setSitePermission, sitePermission } from "./site-permissions";
 export type { SitePermission } from "./site-permissions";
 export { listInstances, removeInstance, upsertInstance } from "./instances";
+export type { InstanceRow, NewInstanceRow } from "./instances";
 export {
   addBookmarkNode,
   bookmarksInFolder,
@@ -31,19 +31,21 @@ export type { BookmarkFolder, BookmarkItem, BookmarkNode } from "./bookmarks";
 export {
   anonymousId,
   bookmarkTree,
+  devtoolsLayout,
   lastActiveDay,
   lastLaunchDay,
   lastSeenVersion,
   lastUrl,
   openTabs,
   setBookmarkTree,
+  setDevtoolsLayout,
   setLastActiveDay,
   setLastLaunchDay,
   setLastSeenVersion,
   setLastUrl,
   setOpenTabs,
 } from "./app-state";
-export type { OpenTabsState } from "./app-state";
+export type { DevtoolsDock, DevtoolsLayout, OpenTabsState } from "./app-state";
 export {
   INTEROP_APPS_DIR,
   INTEROP_INSTANCES_DIR,

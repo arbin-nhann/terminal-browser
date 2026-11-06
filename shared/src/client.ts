@@ -1,42 +1,56 @@
 import fs from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
-import { drizzle } from "drizzle-orm/sqlite-proxy";
+import { DuckDBInstance } from "@duckdb/node-api";
+import type { DuckDBConnection, DuckDBValue } from "@duckdb/node-api";
 
 import { migrate } from "./migrate";
-import { migrations } from "./migrations.gen";
+import { migrations } from "./migrations";
 import { DB_FILE, ensureDataDir } from "./paths";
-import * as schema from "./schema";
 
-export type Store = ReturnType<typeof openStore>;
+export type Row = Record<string, DuckDBValue>;
 
-export function openStore(file: string = DB_FILE) {
-  if (file === DB_FILE) ensureDataDir();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const sqlite = new DatabaseSync(file);
-  sqlite.exec("PRAGMA journal_mode = WAL");
-  sqlite.exec("PRAGMA busy_timeout = 5000");
-  migrate(sqlite, migrations);
-  const db = drizzle(
-    async (sql, params, method) => {
-      const stmt = sqlite.prepare(sql);
-      const values = params as Parameters<typeof stmt.run>;
-      if (method === "run") {
-        stmt.run(...values);
-        return { rows: [] };
-      }
-      const rows = stmt.all(...values).map((row) => Object.values(row));
-      return method === "get" ? { rows: rows[0] ?? [] } : { rows };
-    },
-    { schema },
-  );
-  return { sqlite, db };
+export interface ProfileStore {
+  read(sql: string, params?: DuckDBValue[]): Promise<Row[]>;
+  write(sql: string, params?: DuckDBValue[]): Promise<void>;
 }
 
-let opened: Store | null = null;
+let opened: Promise<ProfileStore> | null = null;
+let current: ProfileStore | null = null;
 
-export function store(): Store {
-  opened ??= openStore();
+export function openProfile(file: string = DB_FILE): Promise<ProfileStore> {
+  opened ??= connect(file).then((store) => {
+    current = store;
+    return store;
+  });
   return opened;
+}
+
+async function connect(file: string): Promise<ProfileStore> {
+  if (file === DB_FILE) ensureDataDir();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const instance = await DuckDBInstance.create(file);
+  const connection = await instance.connect();
+  await migrate(connection, migrations);
+  return queuedStore(connection);
+}
+
+function queuedStore(connection: DuckDBConnection): ProfileStore {
+  let queue: Promise<unknown> = Promise.resolve();
+  return {
+    async read(sql, params = []) {
+      const result = await connection.runAndReadAll(sql, params);
+      return result.getRowObjects();
+    },
+    write(sql, params = []) {
+      const next = queue.then(() => connection.run(sql, params)).then(() => undefined);
+      queue = next.catch(() => {});
+      return next;
+    },
+  };
+}
+
+export function profileStore(): ProfileStore {
+  if (!current) throw new Error("profile database is not open");
+  return current;
 }

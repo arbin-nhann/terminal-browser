@@ -19,6 +19,7 @@ import type { BookmarkFolder, BookmarkItem, BookmarkNode, OpenTabsState } from "
 import {
   addBookmarkNode,
   bookmarkTree,
+  devtoolsLayout,
   bookmarksInFolder,
   commandLabel,
   containsBookmarkUrl,
@@ -26,6 +27,7 @@ import {
   newBookmarkId,
   removeBookmarkNode,
   setBookmarkTree,
+  setDevtoolsLayout,
   ENGINE_LOG_FILE,
   fetchLatestRelease,
   installedChannel,
@@ -38,11 +40,9 @@ import {
   renderEnv,
   setLastUrl,
   setOpenTabs,
-  settings as settingsTable,
   SETTINGS_FILE,
   SHORTCUTS_FILE,
   socketTerminal,
-  store,
   SUGGESTIONS_OFF,
   TERMINAL_SOCKET_ENV,
   upgradeCommand,
@@ -359,7 +359,7 @@ class Session {
     if (process.platform === "darwin") app.dock?.hide();
     this.checkForUpdate();
     this.telemetry.launched();
-    await this.loadDevtoolsSettings();
+    this.loadDevtoolsSettings();
     if (!this.ctx.tty) process.stdout.write(`\x1b]2;${this.marker}\x07`);
     this.root = createRoot({
       name: "terminal-browser",
@@ -1187,26 +1187,15 @@ class Session {
     this.render();
   }
 
-  private async loadDevtoolsSettings() {
-    try {
-      const [row] = await store().db.select().from(settingsTable);
-      if (!row) return;
-      this.devtoolsDockSide = row.devtoolsDock;
-      this.devtoolsFraction = clampDevtoolsFraction(row.devtoolsFraction);
-    } catch { }
+  private loadDevtoolsSettings() {
+    const layout = devtoolsLayout();
+    if (!layout) return;
+    this.devtoolsDockSide = layout.dock;
+    this.devtoolsFraction = clampDevtoolsFraction(layout.fraction);
   }
 
   private saveDevtoolsSettings() {
-    const row = {
-      id: 1,
-      devtoolsDock: this.devtoolsDockSide,
-      devtoolsFraction: this.devtoolsFraction,
-    };
-    void store()
-      .db.insert(settingsTable)
-      .values(row)
-      .onConflictDoUpdate({ target: settingsTable.id, set: row })
-      .catch(() => { });
+    setDevtoolsLayout({ dock: this.devtoolsDockSide, fraction: this.devtoolsFraction });
   }
 
   private openPageMenu(params: Electron.ContextMenuParams) {
