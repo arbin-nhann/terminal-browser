@@ -24,6 +24,7 @@ import {
   devtoolsLayout,
   findBookmarkByUrl,
   moveBookmarkNode,
+  renameBookmarkNode,
   bookmarksInFolder,
   commandLabel,
   containsBookmarkUrl,
@@ -675,6 +676,9 @@ class Session {
     bookmarks: () => this.toggleBookmarkMenu(),
     bookmarkAction: (action, id) => this.bookmarkAction(action, id),
     bookmarkDialogAction: (action, id) => this.bookmarkDialogAction(action, id),
+    bookmarkDialogName: (text) => {
+      if (this.bookmarkDialog) this.bookmarkDialog.name = text;
+    },
     grab: () => void this.toggleGrab(),
     newTabQuery: (text) => this.newTabQuery(text),
     newTabSubmit: (text) => {
@@ -1482,13 +1486,9 @@ class Session {
       return;
     }
     this.pageMenu = null;
-    this.bookmarkDialog = {
-      mode: "add",
-      itemId: null,
-      title: state.title || displayUrl(state.url),
-      url: state.url,
-      selected: folderId,
-    };
+    const title = state.title || displayUrl(state.url);
+    this.blurToOverlay();
+    this.bookmarkDialog = { mode: "add", itemId: null, title, name: title, url: state.url, selected: folderId };
     this.render();
   }
 
@@ -1496,10 +1496,12 @@ class Session {
     const node = findBookmarkNode(this.bookmarkTree, id);
     if (!node) return;
     this.pageMenu = null;
+    this.blurToOverlay();
     this.bookmarkDialog = {
       mode: "move",
       itemId: id,
       title: node.title,
+      name: node.title,
       url: node.kind === "bookmark" ? node.url : "",
       selected: bookmarkParentId(this.bookmarkTree, id),
     };
@@ -1517,7 +1519,7 @@ class Session {
     const excluded = this.bookmarkDialogExcluded();
     return {
       mode: dialog.mode,
-      title: dialog.title,
+      name: dialog.name,
       url: dialog.url,
       selected: dialog.selected,
       canSave: dialog.selected === null || !excluded.has(dialog.selected),
@@ -1548,21 +1550,28 @@ class Session {
     const dialog = this.bookmarkDialog;
     if (!dialog) return;
     if (dialog.selected !== null && this.bookmarkDialogExcluded().has(dialog.selected)) return;
-    this.bookmarkDialog = null;
+    const title = dialog.name.trim() || dialog.title;
+    this.endBookmarkDialog();
     if (dialog.mode === "add") {
-      const item: BookmarkItem = { id: newBookmarkId(), kind: "bookmark", title: dialog.title, url: dialog.url };
+      const item: BookmarkItem = { id: newBookmarkId(), kind: "bookmark", title, url: dialog.url };
       this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, dialog.selected, item));
       this.showToast("Bookmarked", "done");
       return;
     }
     if (!dialog.itemId) return;
-    this.saveBookmarkTree(moveBookmarkNode(this.bookmarkTree, dialog.itemId, dialog.selected));
-    this.showToast("Bookmark moved", "done");
+    const renamed = renameBookmarkNode(this.bookmarkTree, dialog.itemId, title);
+    this.saveBookmarkTree(moveBookmarkNode(renamed, dialog.itemId, dialog.selected));
+    this.showToast("Bookmark updated", "done");
   }
 
   private closeBookmarkDialog() {
-    this.bookmarkDialog = null;
+    this.endBookmarkDialog();
     this.render();
+  }
+
+  private endBookmarkDialog() {
+    this.bookmarkDialog = null;
+    this.refocusPage();
   }
 
   private addBookmarkFolder(parentId: string | null) {
@@ -1969,6 +1978,7 @@ interface BookmarkDialogState {
   mode: "add" | "move";
   itemId: string | null;
   title: string;
+  name: string;
   url: string;
   selected: string | null;
 }

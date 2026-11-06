@@ -29,6 +29,7 @@ export {
   findBookmarkNode,
   moveBookmarkNode,
   newBookmarkId,
+  renameBookmarkNode,
   removeBookmarkNode,
 } from "./bookmarks";
 export type { BookmarkFolder, BookmarkItem, BookmarkNode } from "./bookmarks";

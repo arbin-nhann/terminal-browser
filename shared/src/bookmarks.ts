@@ -112,3 +112,11 @@ export function moveBookmarkNode(tree: BookmarkNode[], id: string, folderId: str
   if (folderId !== null && bookmarkSubtreeIds(tree, id).has(folderId)) return tree;
   return addBookmarkNode(removeBookmarkNode(tree, id), folderId, node);
 }
+
+export function renameBookmarkNode(tree: BookmarkNode[], id: string, title: string): BookmarkNode[] {
+  return tree.map((entry) => {
+    if (entry.id === id) return { ...entry, title };
+    if (entry.kind !== "folder") return entry;
+    return { ...entry, children: renameBookmarkNode(entry.children, id, title) };
+  });
+}

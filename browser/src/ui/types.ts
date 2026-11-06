@@ -97,7 +97,7 @@ export interface BookmarkPickRow {
 
 export interface BookmarkDialogView {
   mode: "add" | "move";
-  title: string;
+  name: string;
   url: string;
   selected: string | null;
   canSave: boolean;
@@ -213,6 +213,7 @@ export interface ChromeActions {
   pageMenuAction(id: string): void;
   bookmarkAction(action: BookmarkAction, id: string | null): void;
   bookmarkDialogAction(action: BookmarkDialogAction, id: string | null): void;
+  bookmarkDialogName(text: string): void;
   pageMenuClose(): void;
   pageMenuZoom(direction: ZoomDirection): void;
   permissionDecide(decision: PermissionDecision): void;

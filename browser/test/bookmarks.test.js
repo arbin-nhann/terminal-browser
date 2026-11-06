@@ -92,3 +92,12 @@ test("folder picker rows put the root first and disable the excluded folders", (
     ["c", 1, false],
   ]);
 });
+
+test("renaming changes only the chosen node and keeps the tree shape", () => {
+  const { renameBookmarkNode } = require("shared");
+  const tree = [folder("f", [item("1", "https://1.test/")]), item("2", "https://2.test/")];
+  const next = renameBookmarkNode(tree, "f", "Work");
+  assert.equal(next[0].title, "Work");
+  assert.equal(next[0].children[0].title, "1");
+  assert.equal(next[1].title, "2");
+});

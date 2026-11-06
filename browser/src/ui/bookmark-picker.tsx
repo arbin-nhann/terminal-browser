@@ -1,4 +1,6 @@
-import { Box, Text } from "@zenbu-labs/pixel";
+import { useEffect, useRef, useState } from "react";
+import { Box, Input, Text } from "@zenbu-labs/pixel";
+import type { NodeHandle } from "@zenbu-labs/pixel";
 import { DialogButton } from "./clear-data-dialog";
 import { Icon } from "./icons";
 import { Backdrop } from "./modals";
@@ -8,6 +10,7 @@ import type { BookmarkDialogView, BookmarkPickRow, ChromeActions, ChromeLayout }
 const COPY = {
   add: "Add bookmark",
   move: "Move bookmark",
+  name: "Name",
   folder: "Folder",
   newFolder: "New folder",
   cancel: "Cancel",
@@ -30,6 +33,12 @@ export function BookmarkPicker({
   const rowH = Math.round(rem * 1.7);
   const listHeight = Math.min(rowH * 9, Math.max(rowH * 3, layout.height - layout.toolbarHeight - rem * 14));
   const selectedFolderDisabled = view.rows.find((row) => row.id === view.selected)?.disabled ?? false;
+  const [name, setName] = useState(view.name);
+  const nameInput = useRef<NodeHandle | null>(null);
+  useEffect(() => {
+    nameInput.current?.focus();
+    nameInput.current?.selectAll();
+  }, []);
   return (
     <>
       <Backdrop layout={layout} onClose={() => actions.bookmarkDialogAction("cancel", null)} />
@@ -66,10 +75,32 @@ export function BookmarkPicker({
             <Icon icon="close" size={rem * 1} color={theme.fg} />
           </Box>
         </Box>
-        <Box style={{ flexDirection: "column", gap: rem * 0.25 }}>
-          <Text style={{ fontSize: rem * 0.85, color: theme.fg, wrap: false, ellipsis: true, selectable: false }}>
-            {view.title}
-          </Text>
+        <Box style={{ flexDirection: "column", gap: rem * 0.3 }}>
+          <Text style={{ fontSize: rem * 0.75, color: theme.muted, wrap: false, selectable: false }}>{COPY.name}</Text>
+          <Box
+            style={{
+              height: rem * 2,
+              alignItems: "center",
+              padding: { left: rem * 0.6, right: rem * 0.6 },
+              background: theme.field,
+              cornerRadius: rem * 0.4,
+              border: { width: 1, color: theme.fieldBorder },
+            }}
+          >
+            <Input
+              ref={nameInput}
+              autoFocus
+              value={name}
+              style={{ flexGrow: 1, flexBasis: 0, wrap: false, fontSize: rem * 0.9 }}
+              caretColor={theme.accent}
+              selectionColor={theme.selection}
+              onChange={(text) => {
+                setName(text);
+                actions.bookmarkDialogName(text);
+              }}
+              onSubmit={() => actions.bookmarkDialogAction("save", null)}
+            />
+          </Box>
           {view.url && (
             <Text style={{ fontSize: rem * 0.72, color: theme.muted, wrap: false, ellipsis: true, selectable: false }}>
               {view.url}
