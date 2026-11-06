@@ -315,7 +315,7 @@ function Toolbar({
     (nav ? rem * 3.5 : 0) -
     (record ? rem * 7.25 : 0) -
     (profiling ? rem * 6.5 : 0) -
-    rem * 1.75;
+    rem * 3.25;
   return (
     <Box
       style={{
@@ -368,6 +368,7 @@ function Toolbar({
         theme={theme}
         onClick={actions.grab}
       />
+      <ToolbarButton icon="invert" enabled rem={rem} theme={theme} onClick={actions.smartInvert} />
       <ToolbarButton icon="bookmark" enabled rem={rem} theme={theme} onClick={actions.bookmarks} />
       <ToolbarButton icon="more" enabled rem={rem} theme={theme} onClick={actions.tabMenu} />
       {record && <RecordToolbarPill view={record} actions={actions} rem={rem} theme={theme} />}

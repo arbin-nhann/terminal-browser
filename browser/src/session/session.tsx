@@ -90,6 +90,7 @@ import type {
 } from "../ui/types";
 import { displayUrl, normalizeUrl, searchOrUrl, searchUrlFor } from "../url";
 import { bookmarkFolderRows, bookmarkRowViews } from "./bookmark-view";
+import { SMART_INVERT_SCRIPT } from "./smart-invert";
 import type { SearchUrl } from "../url";
 import { HOME_URL, START_URL } from "../pages/scheme";
 import type { PageContext } from "../pages/scheme";
@@ -674,6 +675,7 @@ class Session {
     tabNew: () => this.openNewTabModal(),
     tabMenu: () => this.toggleToolbarMenu(),
     bookmarks: () => this.toggleBookmarkMenu(),
+    smartInvert: () => this.toggleSmartInvert(),
     bookmarkAction: (action, id) => this.bookmarkAction(action, id),
     bookmarkDialogAction: (action, id) => this.bookmarkDialogAction(action, id),
     bookmarkDialogName: (text) => {
@@ -1445,6 +1447,12 @@ class Session {
         shortcut: this.keymap.label("settings.open"),
       },
     ];
+  }
+
+  private toggleSmartInvert() {
+    const handle = this.tabs.activeHandle;
+    if (!handle) return;
+    void handle.webContents.executeJavaScript(SMART_INVERT_SCRIPT).catch(() => {});
   }
 
   private toggleBookmarkMenu() {

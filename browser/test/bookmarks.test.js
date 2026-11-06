@@ -101,3 +101,8 @@ test("renaming changes only the chosen node and keeps the tree shape", () => {
   assert.equal(next[0].children[0].title, "1");
   assert.equal(next[1].title, "2");
 });
+
+test("the smart invert script parses as a page script", () => {
+  const { SMART_INVERT_SCRIPT } = require("../dist/session/smart-invert.js");
+  assert.doesNotThrow(() => new Function(SMART_INVERT_SCRIPT));
+});

@@ -201,6 +201,7 @@ export interface ChromeActions {
   tabNew(): void;
   tabMenu(): void;
   bookmarks(): void;
+  smartInvert(): void;
   tabMute(id: number): void;
   grab(): void;
   newTabQuery(text: string): void;

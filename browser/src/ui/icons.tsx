@@ -42,6 +42,7 @@ export const ICONS = {
     "M 14 3 L 14 7 M 8 10 L 8 14 M 16 17 L 16 21",
   plus: "M 12 5.5 L 12 18.5 M 5.5 12 L 18.5 12",
   bookmark: "M 6.5 3.5 L 17.5 3.5 L 17.5 20.5 L 12 16.5 L 6.5 20.5 Z",
+  invert: arcPath(12, 12, 8.5, 0, 360) + " M 12 3.5 L 12 20.5",
   move:
     "M 12 3 L 12 21 M 3 12 L 21 12 M 9 6 L 12 3 L 15 6 M 9 18 L 12 21 L 15 18 M 6 9 L 3 12 L 6 15 M 18 9 L 21 12 L 18 15",
   folder:
