@@ -292,6 +292,13 @@ export function TabStrip({
               overflow: "hidden",
             }}
             onClick={() => (tab.active ? actions.urlEdit() : actions.tabSwitch(tab.id))}
+            onPointer={
+              ghost
+                ? undefined
+                : (event) => {
+                  if (event.kind === "down" && event.button === "middle") actions.tabClose(tab.id);
+                }
+            }
             onMouseEnter={() => setHovered(tab.id)}
             onMouseLeave={() => setHovered((id) => (id === tab.id ? null : id))}
           >
