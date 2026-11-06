@@ -22,7 +22,7 @@ export const SMART_INVERT_SCRIPT = `(() => {
   const luminance = (color) => {
     const parts = (color || "").match(/[\\d.]+/g);
     if (!parts || parts.length < 3) return null;
-    if (parts.length > 3 && Number(parts[3]) === 0) return null;
+    if (parts.length > 3 && Number(parts[3]) < 0.9) return null;
     const [r, g, b] = parts.map(Number);
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   };
@@ -32,7 +32,9 @@ export const SMART_INVERT_SCRIPT = `(() => {
     const mark = (parent) => {
       for (const child of parent.children) {
         const lum = background(child);
-        if (lum !== null && lum < 0.35 && !child.matches(${JSON.stringify(MEDIA)})) {
+        const box = child.getBoundingClientRect();
+        const covering = box.width * box.height > innerWidth * innerHeight * 0.5;
+        if (lum !== null && lum < 0.35 && !covering && !child.matches(${JSON.stringify(MEDIA)})) {
           child.setAttribute(KEEP, "");
         } else {
           mark(child);
@@ -41,9 +43,16 @@ export const SMART_INVERT_SCRIPT = `(() => {
     };
     mark(document.body);
   }
+  const transparent = (el) => {
+    const parts = (getComputedStyle(el).backgroundColor || "").match(/[\\d.]+/g) || [];
+    return parts.length < 4 || Number(parts[3]) === 0;
+  };
+  const rootBackground = transparent(document.documentElement) && transparent(document.body)
+    ? "html{background-color:#fff}"
+    : "";
   const style = document.createElement("style");
   style.id = STYLE_ID;
-  style.textContent = ${JSON.stringify(CSS)};
+  style.textContent = ${JSON.stringify(CSS)} + rootBackground;
   document.documentElement.appendChild(style);
   return true;
 })();`;
