@@ -15,6 +15,7 @@ import type {
 import { detect } from "@zenbu-labs/pixel/terminal";
 import type { Pane, Terminal } from "@zenbu-labs/pixel/terminal";
 
+import type { OpenTabsState } from "shared";
 import {
   commandLabel,
   ENGINE_LOG_FILE,
@@ -25,8 +26,10 @@ import {
   listApps,
   listStep,
   maxFps,
+  openTabs,
   renderEnv,
   setLastUrl,
+  setOpenTabs,
   settings as settingsTable,
   SETTINGS_FILE,
   SHORTCUTS_FILE,
@@ -305,6 +308,7 @@ class Session {
         onTabOpened: (opener, url) => this.records.get(opener.id)?.linkOpened(url),
         tabSwitchAllowed: () => !this.activeRecord()?.reviewing,
         onTabsChanged: () => {
+          this.saveOpenTabs();
           this.registry?.update();
           for (const record of [...this.records.values()]) {
             if (record.active && !this.tabs.has(record.target.tabId)) record.tabClosed();
@@ -370,7 +374,7 @@ class Session {
     this.applyRenderSettings();
     this.settings.watch();
     this.recalculateLayout();
-    this.tabs.create(this.fallbackState.url);
+    this.openInitialTabs();
     this.registry = new Registry({
       key: this.ctx.key,
       tty: this.ctx.tty ?? null,
@@ -1732,6 +1736,37 @@ class Session {
       if (last && /^https?:\/\//.test(last)) return last;
     } catch { }
     return this.defaultUrl;
+  }
+
+  private openInitialTabs() {
+    const saved = this.savedTabsToRestore();
+    if (!saved) {
+      this.tabs.create(this.fallbackState.url);
+      return;
+    }
+    for (const url of saved.urls) this.tabs.create(url, false);
+    const tabs = this.tabs.all();
+    this.tabs.activate((tabs[saved.active] ?? tabs[0]).id);
+  }
+
+  private savedTabsToRestore(): OpenTabsState | null {
+    const explicitUrl = this.argv.some((argument) => !argument.startsWith("-"));
+    if (explicitUrl || this.settings.get("session.restoreTabs") !== "on") return null;
+    try {
+      const saved = openTabs();
+      return saved && saved.urls.length > 0 ? saved : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveOpenTabs() {
+    const tabs = this.tabs.all();
+    if (tabs.length === 0) return;
+    const active = Math.max(0, tabs.findIndex((tab) => tab.id === this.tabs.active?.id));
+    try {
+      setOpenTabs({ urls: tabs.map((tab) => tab.state.url), active });
+    } catch {}
   }
 }
 

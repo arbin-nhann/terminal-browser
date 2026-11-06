@@ -104,6 +104,7 @@ export class TabManager {
     if (!tab) return;
     const urlChanged = state.url !== tab.state.url;
     tab.state = state;
+    if (urlChanged) this.host.onTabsChanged();
     if (!tab.targetId) void this.resolveTargetId(tab);
     if (tab.id === this.activeId) this.host.onActiveState(state, urlChanged);
     this.host.requestRender();
@@ -163,6 +164,7 @@ export class TabManager {
     this.activeId = id;
     tab.ref.current?.focus();
     this.host.onActivated();
+    this.host.onTabsChanged();
     this.host.requestRender();
   }
 

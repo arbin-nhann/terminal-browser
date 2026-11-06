@@ -95,6 +95,14 @@ export const SETTINGS = {
     default: "off",
     choices: onOff,
   }),
+  "session.restoreTabs": setting({
+    group: "general",
+    label: "Restore tabs on new session",
+    hint: "Reopen the tabs from the last session when a new session starts without a URL",
+    schema: z.enum(["on", "off"]),
+    default: "on",
+    choices: onOff,
+  }),
   "render.fps": setting({
     group: "advanced",
     label: "Frame rate",

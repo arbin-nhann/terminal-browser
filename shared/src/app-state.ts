@@ -1,6 +1,15 @@
 import crypto from "node:crypto";
 
+import { z } from "zod";
+
 import { store } from "./client";
+
+const openTabsSchema = z.object({
+  urls: z.array(z.string()),
+  active: z.number().int().nonnegative(),
+});
+
+export type OpenTabsState = z.infer<typeof openTabsSchema>;
 
 // why are we using raw sql here?
 function getAppState(key: string): string | null {
@@ -24,6 +33,17 @@ export function lastUrl(): string | null {
 
 export function setLastUrl(url: string): void {
   setAppState("last-url", url);
+}
+
+export function openTabs(): OpenTabsState | null {
+  const raw = getAppState("tabs-open");
+  if (!raw) return null;
+  const parsed = openTabsSchema.safeParse(JSON.parse(raw));
+  return parsed.success ? parsed.data : null;
+}
+
+export function setOpenTabs(state: OpenTabsState): void {
+  setAppState("tabs-open", JSON.stringify(openTabsSchema.parse(state)));
 }
 
 export function anonymousId(): string {

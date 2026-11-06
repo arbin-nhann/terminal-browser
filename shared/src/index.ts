@@ -25,11 +25,14 @@ export {
   lastLaunchDay,
   lastSeenVersion,
   lastUrl,
+  openTabs,
   setLastActiveDay,
   setLastLaunchDay,
   setLastSeenVersion,
   setLastUrl,
+  setOpenTabs,
 } from "./app-state";
+export type { OpenTabsState } from "./app-state";
 export {
   INTEROP_APPS_DIR,
   INTEROP_INSTANCES_DIR,
