@@ -1,7 +1,7 @@
 const STYLE_ID = "terminal-browser-smart-invert";
 const CSS =
   "html{filter:invert(1) hue-rotate(180deg)}" +
-  "img,picture,video,canvas,iframe,[style*='background-image']{filter:invert(1) hue-rotate(180deg)}";
+  "img,picture,video,canvas,iframe,svg,[style*='background-image']{filter:invert(1) hue-rotate(180deg)}";
 
 export const SMART_INVERT_SCRIPT =
   `(() => {` +
