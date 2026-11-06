@@ -7,6 +7,7 @@ import type { IconName } from "./icons";
 import { ClearDataDialog } from "./clear-data-dialog";
 import { PageContextMenu } from "./context-menu";
 import { BookmarkPanel } from "./bookmark-panel";
+import { BookmarkPicker } from "./bookmark-picker";
 import { MarkupCanvas } from "./markup-canvas";
 import { NewTabCard, PaletteCard, UrlCard } from "./modals";
 import { DownloadHud, FindBar, Toast, ZoomHud } from "./overlays";
@@ -25,6 +26,7 @@ import { usePulse } from "./pulse";
 import type { RecordView } from "../record/types";
 import type {
   ChromeActions,
+  BookmarkDialogView,
   BookmarkPanelView,
   ChromeLayout,
   ClearDataView,
@@ -56,6 +58,7 @@ export function Chrome({
   toast,
   pageMenu,
   bookmarkPanel,
+  bookmarkDialog,
   permissionPrompt,
   settings,
   clearData,
@@ -82,6 +85,7 @@ export function Chrome({
   toast: ToastView | null;
   pageMenu: PageMenuView | null;
   bookmarkPanel: BookmarkPanelView | null;
+  bookmarkDialog: BookmarkDialogView | null;
   permissionPrompt: PermissionPromptView | null;
   settings: SettingsView | null;
   clearData: ClearDataView | null;
@@ -163,6 +167,9 @@ export function Chrome({
       )}
       {bookmarkPanel && (
         <BookmarkPanel view={bookmarkPanel} actions={actions} layout={layout} theme={theme} />
+      )}
+      {bookmarkDialog && (
+        <BookmarkPicker view={bookmarkDialog} actions={actions} layout={layout} theme={theme} />
       )}
       {findOpen && (
         <FindBar state={state} actions={actions} layout={layout} theme={theme} />

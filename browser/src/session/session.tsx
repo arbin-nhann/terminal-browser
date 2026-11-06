@@ -18,8 +18,12 @@ import type { Pane, Terminal } from "@zenbu-labs/pixel/terminal";
 import type { BookmarkFolder, BookmarkItem, BookmarkNode, OpenTabsState } from "shared";
 import {
   addBookmarkNode,
+  bookmarkParentId,
+  bookmarkSubtreeIds,
   bookmarkTree,
   devtoolsLayout,
+  findBookmarkByUrl,
+  moveBookmarkNode,
   bookmarksInFolder,
   commandLabel,
   containsBookmarkUrl,
@@ -73,6 +77,8 @@ import type {
   DownloadView,
   NewTabSuggestion,
   BookmarkAction,
+  BookmarkDialogAction,
+  BookmarkDialogView,
   BookmarkPanelView,
   PageMenuItem,
   PageMenuView,
@@ -82,7 +88,7 @@ import type {
   ReleaseView,
 } from "../ui/types";
 import { displayUrl, normalizeUrl, searchOrUrl, searchUrlFor } from "../url";
-import { bookmarkRowViews } from "./bookmark-view";
+import { bookmarkFolderRows, bookmarkRowViews } from "./bookmark-view";
 import type { SearchUrl } from "../url";
 import { HOME_URL, START_URL } from "../pages/scheme";
 import type { PageContext } from "../pages/scheme";
@@ -256,6 +262,7 @@ class Session {
     | null = null;
   private bookmarkTree: BookmarkNode[] = savedBookmarkTree();
   private collapsedFolders = new Set<string>();
+  private bookmarkDialog: BookmarkDialogState | null = null;
 
   private clearData: ClearDataState | null = null;
   private findOpen = false;
@@ -590,6 +597,7 @@ class Session {
         }
         pageMenu={this.pageMenuView()}
         bookmarkPanel={this.bookmarkPanelView()}
+        bookmarkDialog={this.bookmarkDialogView()}
         permissionPrompt={this.tabs.active ? this.permissions.view(this.tabs.active.id) : null}
         settings={this.settings.view()}
         clearData={
@@ -666,6 +674,7 @@ class Session {
     tabMenu: () => this.toggleToolbarMenu(),
     bookmarks: () => this.toggleBookmarkMenu(),
     bookmarkAction: (action, id) => this.bookmarkAction(action, id),
+    bookmarkDialogAction: (action, id) => this.bookmarkDialogAction(action, id),
     grab: () => void this.toggleGrab(),
     newTabQuery: (text) => this.newTabQuery(text),
     newTabSubmit: (text) => {
@@ -865,6 +874,11 @@ class Session {
       if (event.key === "escape" || command === "settings.open") this.settings.close();
       return true;
     }
+    if (this.bookmarkDialog) {
+      if (event.key === "escape") this.closeBookmarkDialog();
+      else if (event.key === "enter") this.saveBookmarkDialog();
+      return true;
+    }
     if (this.clearData) {
       if (event.key === "escape") this.closeClearData();
       else if (event.key === "enter") void this.confirmClearData();
@@ -965,7 +979,7 @@ class Session {
         this.openFind();
         return;
       case "bookmark.add":
-        this.addCurrentBookmark(null);
+        this.openAddBookmarkDialog(null);
         return;
       case "page.reload":
         this.activeRecord()?.reloaded();
@@ -1434,7 +1448,7 @@ class Session {
       this.closePageMenu();
       return;
     }
-    if (this.palette || this.newTab || this.urlEditOpen || this.settings.isOpen || this.clearData) return;
+    if (this.palette || this.newTab || this.urlEditOpen || this.settings.isOpen || this.clearData || this.bookmarkDialog) return;
     this.pageMenu = { kind: "bookmarks" };
     this.render();
   }
@@ -1454,25 +1468,101 @@ class Session {
     if (action === "open-folder" && id) return this.openBookmarkFolder(id);
     if (action === "toggle" && id) return this.toggleBookmarkFolder(id);
     if (action === "remove" && id) return this.saveBookmarkTree(removeBookmarkNode(this.bookmarkTree, id));
-    if (action === "add-page") return this.addCurrentBookmark(id);
+    if (action === "move" && id) return this.openMoveBookmarkDialog(id);
+    if (action === "add-page") return this.openAddBookmarkDialog(id);
     if (action === "add-folder") return this.addBookmarkFolder(id);
   }
 
-  private addCurrentBookmark(folderId: string | null) {
+  private openAddBookmarkDialog(folderId: string | null) {
     const state = this.tabs.activeState;
     if (!state) return;
-    if (containsBookmarkUrl(this.bookmarkTree, state.url)) {
-      this.showToast("Already bookmarked", "done");
+    const existing = findBookmarkByUrl(this.bookmarkTree, state.url);
+    if (existing) {
+      this.openMoveBookmarkDialog(existing.id);
       return;
     }
-    const item: BookmarkItem = {
-      id: newBookmarkId(),
-      kind: "bookmark",
+    this.pageMenu = null;
+    this.bookmarkDialog = {
+      mode: "add",
+      itemId: null,
       title: state.title || displayUrl(state.url),
       url: state.url,
+      selected: folderId,
     };
-    this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, folderId, item));
-    this.showToast("Bookmarked", "done");
+    this.render();
+  }
+
+  private openMoveBookmarkDialog(id: string) {
+    const node = findBookmarkNode(this.bookmarkTree, id);
+    if (!node) return;
+    this.pageMenu = null;
+    this.bookmarkDialog = {
+      mode: "move",
+      itemId: id,
+      title: node.title,
+      url: node.kind === "bookmark" ? node.url : "",
+      selected: bookmarkParentId(this.bookmarkTree, id),
+    };
+    this.render();
+  }
+
+  private bookmarkDialogExcluded(): Set<string> {
+    const dialog = this.bookmarkDialog;
+    return dialog?.mode === "move" && dialog.itemId ? bookmarkSubtreeIds(this.bookmarkTree, dialog.itemId) : new Set();
+  }
+
+  private bookmarkDialogView(): BookmarkDialogView | null {
+    const dialog = this.bookmarkDialog;
+    if (!dialog) return null;
+    const excluded = this.bookmarkDialogExcluded();
+    return {
+      mode: dialog.mode,
+      title: dialog.title,
+      url: dialog.url,
+      selected: dialog.selected,
+      canSave: dialog.selected === null || !excluded.has(dialog.selected),
+      rows: bookmarkFolderRows(this.bookmarkTree, this.collapsedFolders, excluded),
+    };
+  }
+
+  private bookmarkDialogAction(action: BookmarkDialogAction, id: string | null) {
+    const dialog = this.bookmarkDialog;
+    if (!dialog) return;
+    if (action === "cancel") return this.closeBookmarkDialog();
+    if (action === "save") return this.saveBookmarkDialog();
+    if (action === "select") {
+      dialog.selected = id;
+      return this.render();
+    }
+    if (action === "toggle" && id) return this.toggleBookmarkFolder(id);
+    if (action === "new-folder") {
+      const parent = dialog.selected;
+      if (parent) this.collapsedFolders.delete(parent);
+      const folder: BookmarkFolder = { id: newBookmarkId(), kind: "folder", title: "New folder", children: [] };
+      dialog.selected = folder.id;
+      this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, parent, folder));
+    }
+  }
+
+  private saveBookmarkDialog() {
+    const dialog = this.bookmarkDialog;
+    if (!dialog) return;
+    if (dialog.selected !== null && this.bookmarkDialogExcluded().has(dialog.selected)) return;
+    this.bookmarkDialog = null;
+    if (dialog.mode === "add") {
+      const item: BookmarkItem = { id: newBookmarkId(), kind: "bookmark", title: dialog.title, url: dialog.url };
+      this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, dialog.selected, item));
+      this.showToast("Bookmarked", "done");
+      return;
+    }
+    if (!dialog.itemId) return;
+    this.saveBookmarkTree(moveBookmarkNode(this.bookmarkTree, dialog.itemId, dialog.selected));
+    this.showToast("Bookmark moved", "done");
+  }
+
+  private closeBookmarkDialog() {
+    this.bookmarkDialog = null;
+    this.render();
   }
 
   private addBookmarkFolder(parentId: string | null) {
@@ -1873,6 +1963,14 @@ interface PaletteAction {
 function splitDirection(value: string | null): InstanceRow["splitDir"] {
   const directions = ["right", "left", "down", "up"] as const;
   return directions.find((direction) => direction === value) ?? null;
+}
+
+interface BookmarkDialogState {
+  mode: "add" | "move";
+  itemId: string | null;
+  title: string;
+  url: string;
+  selected: string | null;
 }
 
 function savedBookmarkTree(): BookmarkNode[] {

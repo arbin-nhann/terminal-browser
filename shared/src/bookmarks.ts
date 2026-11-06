@@ -78,5 +78,37 @@ function collectBookmarks(nodes: BookmarkNode[]): BookmarkItem[] {
 }
 
 export function containsBookmarkUrl(tree: BookmarkNode[], url: string): boolean {
-  return collectBookmarks(tree).some((item) => item.url === url);
+  return findBookmarkByUrl(tree, url) !== null;
+}
+
+export function findBookmarkByUrl(tree: BookmarkNode[], url: string): BookmarkItem | null {
+  return collectBookmarks(tree).find((item) => item.url === url) ?? null;
+}
+
+export function bookmarkParentId(tree: BookmarkNode[], id: string, parent: string | null = null): string | null {
+  for (const entry of tree) {
+    if (entry.id === id) return parent;
+    if (entry.kind !== "folder") continue;
+    const inside = bookmarkParentId(entry.children, id, entry.id);
+    if (inside !== null) return inside;
+  }
+  return null;
+}
+
+export function bookmarkSubtreeIds(tree: BookmarkNode[], id: string): Set<string> {
+  const node = findBookmarkNode(tree, id);
+  const ids = new Set<string>();
+  const visit = (entry: BookmarkNode) => {
+    ids.add(entry.id);
+    if (entry.kind === "folder") entry.children.forEach(visit);
+  };
+  if (node) visit(node);
+  return ids;
+}
+
+export function moveBookmarkNode(tree: BookmarkNode[], id: string, folderId: string | null): BookmarkNode[] {
+  const node = findBookmarkNode(tree, id);
+  if (!node) return tree;
+  if (folderId !== null && bookmarkSubtreeIds(tree, id).has(folderId)) return tree;
+  return addBookmarkNode(removeBookmarkNode(tree, id), folderId, node);
 }

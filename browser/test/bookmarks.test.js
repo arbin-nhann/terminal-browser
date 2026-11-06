@@ -59,3 +59,36 @@ test("row views flatten the tree and hide children of collapsed folders", () => 
   const collapsed = bookmarkRowViews(tree, new Set(["f"]));
   assert.deepEqual(collapsed.map((row) => row.id), ["f", "3"]);
 });
+
+test("moving an item into another folder removes it from its old place", () => {
+  const tree = [folder("a", [item("1", "https://1.test/")]), folder("b")];
+  const next = require("shared").moveBookmarkNode(tree, "1", "b");
+  assert.deepEqual(bookmarksInFolder(next, "a"), []);
+  assert.deepEqual(bookmarksInFolder(next, "b").map((entry) => entry.id), ["1"]);
+});
+
+test("a folder cannot be moved into itself or one of its descendants", () => {
+  const { moveBookmarkNode } = require("shared");
+  const tree = [folder("f", [folder("g")])];
+  assert.deepEqual(moveBookmarkNode(tree, "f", "g"), tree);
+  assert.deepEqual(moveBookmarkNode(tree, "f", "f"), tree);
+});
+
+test("parent lookup returns null for root items and the folder otherwise", () => {
+  const { bookmarkParentId } = require("shared");
+  const tree = [item("root", "https://r.test/"), folder("f", [item("1", "https://1.test/")])];
+  assert.equal(bookmarkParentId(tree, "root"), null);
+  assert.equal(bookmarkParentId(tree, "1"), "f");
+});
+
+test("folder picker rows put the root first and disable the excluded folders", () => {
+  const { bookmarkFolderRows } = require("../dist/session/bookmark-view.js");
+  const tree = [folder("a", [folder("b")]), folder("c")];
+  const rows = bookmarkFolderRows(tree, new Set(), new Set(["a", "b"]));
+  assert.deepEqual(rows.map((row) => [row.id, row.depth, row.disabled]), [
+    [null, 0, false],
+    ["a", 1, true],
+    ["b", 2, true],
+    ["c", 1, false],
+  ]);
+});

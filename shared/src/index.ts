@@ -21,9 +21,13 @@ export { listInstances, removeInstance, upsertInstance } from "./instances";
 export type { InstanceRow, NewInstanceRow } from "./instances";
 export {
   addBookmarkNode,
+  bookmarkParentId,
+  bookmarkSubtreeIds,
   bookmarksInFolder,
   containsBookmarkUrl,
+  findBookmarkByUrl,
   findBookmarkNode,
+  moveBookmarkNode,
   newBookmarkId,
   removeBookmarkNode,
 } from "./bookmarks";

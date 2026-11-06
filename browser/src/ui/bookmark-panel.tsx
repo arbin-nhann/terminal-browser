@@ -203,6 +203,14 @@ function BookmarkRowItem({
         </>
       )}
       <IconButton
+        icon="move"
+        size={rem * 1.4}
+        iconSize={rem * 0.8}
+        rem={rem}
+        theme={theme}
+        onClick={() => actions.bookmarkAction("move", row.id)}
+      />
+      <IconButton
         icon="close"
         size={rem * 1.4}
         iconSize={rem * 0.8}

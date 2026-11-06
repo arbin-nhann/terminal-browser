@@ -82,7 +82,27 @@ export interface PageMenuView {
   items: PageMenuItem[];
 }
 
-export type BookmarkAction = "open" | "open-folder" | "toggle" | "remove" | "add-page" | "add-folder";
+export type BookmarkAction = "open" | "open-folder" | "toggle" | "remove" | "move" | "add-page" | "add-folder";
+
+export type BookmarkDialogAction = "select" | "toggle" | "new-folder" | "save" | "cancel";
+
+export interface BookmarkPickRow {
+  id: string | null;
+  title: string;
+  depth: number;
+  expanded: boolean;
+  hasChildren: boolean;
+  disabled: boolean;
+}
+
+export interface BookmarkDialogView {
+  mode: "add" | "move";
+  title: string;
+  url: string;
+  selected: string | null;
+  canSave: boolean;
+  rows: BookmarkPickRow[];
+}
 
 export interface BookmarkRowView {
   id: string;
@@ -192,6 +212,7 @@ export interface ChromeActions {
   devtoolsDividerHover(hovering: boolean): void;
   pageMenuAction(id: string): void;
   bookmarkAction(action: BookmarkAction, id: string | null): void;
+  bookmarkDialogAction(action: BookmarkDialogAction, id: string | null): void;
   pageMenuClose(): void;
   pageMenuZoom(direction: ZoomDirection): void;
   permissionDecide(decision: PermissionDecision): void;

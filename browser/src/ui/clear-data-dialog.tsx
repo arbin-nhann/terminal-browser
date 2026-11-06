@@ -146,7 +146,7 @@ function CheckRow({
   );
 }
 
-function DialogButton({
+export function DialogButton({
   label,
   tone,
   enabled,
