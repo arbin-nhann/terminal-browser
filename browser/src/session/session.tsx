@@ -15,9 +15,17 @@ import type {
 import { detect } from "@zenbu-labs/pixel/terminal";
 import type { Pane, Terminal } from "@zenbu-labs/pixel/terminal";
 
-import type { OpenTabsState } from "shared";
+import type { BookmarkFolder, BookmarkItem, BookmarkNode, OpenTabsState } from "shared";
 import {
+  addBookmarkNode,
+  bookmarkTree,
+  bookmarksInFolder,
   commandLabel,
+  containsBookmarkUrl,
+  findBookmarkNode,
+  newBookmarkId,
+  removeBookmarkNode,
+  setBookmarkTree,
   ENGINE_LOG_FILE,
   fetchLatestRelease,
   installedChannel,
@@ -64,6 +72,8 @@ import type {
   DevtoolsView,
   DownloadView,
   NewTabSuggestion,
+  BookmarkAction,
+  BookmarkPanelView,
   PageMenuItem,
   PageMenuView,
   TabActions,
@@ -72,6 +82,7 @@ import type {
   ReleaseView,
 } from "../ui/types";
 import { displayUrl, normalizeUrl, searchOrUrl, searchUrlFor } from "../url";
+import { bookmarkRowViews } from "./bookmark-view";
 import type { SearchUrl } from "../url";
 import { HOME_URL, START_URL } from "../pages/scheme";
 import type { PageContext } from "../pages/scheme";
@@ -241,7 +252,10 @@ class Session {
         selectionText: string;
       }
     | { kind: "toolbar" }
+    | { kind: "bookmarks" }
     | null = null;
+  private bookmarkTree: BookmarkNode[] = savedBookmarkTree();
+  private collapsedFolders = new Set<string>();
 
   private clearData: ClearDataState | null = null;
   private findOpen = false;
@@ -575,6 +589,7 @@ class Session {
             : null
         }
         pageMenu={this.pageMenuView()}
+        bookmarkPanel={this.bookmarkPanelView()}
         permissionPrompt={this.tabs.active ? this.permissions.view(this.tabs.active.id) : null}
         settings={this.settings.view()}
         clearData={
@@ -649,6 +664,8 @@ class Session {
     tabClose: (id) => this.closeOrShutdown(id),
     tabNew: () => this.openNewTabModal(),
     tabMenu: () => this.toggleToolbarMenu(),
+    bookmarks: () => this.toggleBookmarkMenu(),
+    bookmarkAction: (action, id) => this.bookmarkAction(action, id),
     grab: () => void this.toggleGrab(),
     newTabQuery: (text) => this.newTabQuery(text),
     newTabSubmit: (text) => {
@@ -946,6 +963,9 @@ class Session {
         return;
       case "find":
         this.openFind();
+        return;
+      case "bookmark.add":
+        this.addCurrentBookmark(null);
         return;
       case "page.reload":
         this.activeRecord()?.reloaded();
@@ -1420,8 +1440,92 @@ class Session {
     ];
   }
 
+  private toggleBookmarkMenu() {
+    if (this.pageMenu?.kind === "bookmarks") {
+      this.closePageMenu();
+      return;
+    }
+    if (this.palette || this.newTab || this.urlEditOpen || this.settings.isOpen || this.clearData) return;
+    this.pageMenu = { kind: "bookmarks" };
+    this.render();
+  }
+
+  private bookmarkPanelView(): BookmarkPanelView | null {
+    if (this.pageMenu?.kind !== "bookmarks" || !this.layout) return null;
+    return {
+      x: this.layout.width,
+      y: this.layout.toolbarHeight,
+      shortcut: this.keymap.label("bookmark.add"),
+      rows: bookmarkRowViews(this.bookmarkTree, this.collapsedFolders),
+    };
+  }
+
+  private bookmarkAction(action: BookmarkAction, id: string | null) {
+    if (action === "open" && id) return this.openBookmark(id);
+    if (action === "open-folder" && id) return this.openBookmarkFolder(id);
+    if (action === "toggle" && id) return this.toggleBookmarkFolder(id);
+    if (action === "remove" && id) return this.saveBookmarkTree(removeBookmarkNode(this.bookmarkTree, id));
+    if (action === "add-page") return this.addCurrentBookmark(id);
+    if (action === "add-folder") return this.addBookmarkFolder(id);
+  }
+
+  private addCurrentBookmark(folderId: string | null) {
+    const state = this.tabs.activeState;
+    if (!state) return;
+    if (containsBookmarkUrl(this.bookmarkTree, state.url)) {
+      this.showToast("Already bookmarked", "done");
+      return;
+    }
+    const item: BookmarkItem = {
+      id: newBookmarkId(),
+      kind: "bookmark",
+      title: state.title || displayUrl(state.url),
+      url: state.url,
+    };
+    this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, folderId, item));
+    this.showToast("Bookmarked", "done");
+  }
+
+  private addBookmarkFolder(parentId: string | null) {
+    const folder: BookmarkFolder = { id: newBookmarkId(), kind: "folder", title: "New folder", children: [] };
+    this.saveBookmarkTree(addBookmarkNode(this.bookmarkTree, parentId, folder));
+  }
+
+  private openBookmark(id: string) {
+    const item = findBookmarkNode(this.bookmarkTree, id);
+    if (item?.kind !== "bookmark") return;
+    this.closePageMenu();
+    this.tabs.create(item.url);
+  }
+
+  private openBookmarkFolder(id: string) {
+    const items = bookmarksInFolder(this.bookmarkTree, id);
+    this.closePageMenu();
+    if (items.length === 0) {
+      this.showToast("Folder is empty", "done");
+      return;
+    }
+    const opened = items.map((item) => this.tabs.create(item.url, false));
+    this.tabs.activate(opened[0]!.id);
+  }
+
+  private toggleBookmarkFolder(id: string) {
+    if (this.collapsedFolders.has(id)) this.collapsedFolders.delete(id);
+    else this.collapsedFolders.add(id);
+    this.render();
+  }
+
+  private saveBookmarkTree(tree: BookmarkNode[]) {
+    this.bookmarkTree = tree;
+    try {
+      setBookmarkTree(tree);
+    } catch {}
+    this.render();
+  }
+
   private pageMenuView(): PageMenuView | null {
     if (!this.pageMenu || !this.layout) return null;
+    if (this.pageMenu.kind === "bookmarks") return null;
     if (this.pageMenu.kind === "toolbar") {
       return {
         x: this.layout.width,
@@ -1780,6 +1884,14 @@ interface PaletteAction {
 function splitDirection(value: string | null): InstanceRow["splitDir"] {
   const directions = ["right", "left", "down", "up"] as const;
   return directions.find((direction) => direction === value) ?? null;
+}
+
+function savedBookmarkTree(): BookmarkNode[] {
+  try {
+    return bookmarkTree();
+  } catch {
+    return [];
+  }
 }
 
 function flagValue(argv: string[], flag: string): string | null {

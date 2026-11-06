@@ -6,6 +6,7 @@ import { Icon } from "./icons";
 import type { IconName } from "./icons";
 import { ClearDataDialog } from "./clear-data-dialog";
 import { PageContextMenu } from "./context-menu";
+import { BookmarkPanel } from "./bookmark-panel";
 import { MarkupCanvas } from "./markup-canvas";
 import { NewTabCard, PaletteCard, UrlCard } from "./modals";
 import { DownloadHud, FindBar, Toast, ZoomHud } from "./overlays";
@@ -24,6 +25,7 @@ import { usePulse } from "./pulse";
 import type { RecordView } from "../record/types";
 import type {
   ChromeActions,
+  BookmarkPanelView,
   ChromeLayout,
   ClearDataView,
   DownloadView,
@@ -53,6 +55,7 @@ export function Chrome({
   download,
   toast,
   pageMenu,
+  bookmarkPanel,
   permissionPrompt,
   settings,
   clearData,
@@ -78,6 +81,7 @@ export function Chrome({
   download: DownloadView | null;
   toast: ToastView | null;
   pageMenu: PageMenuView | null;
+  bookmarkPanel: BookmarkPanelView | null;
   permissionPrompt: PermissionPromptView | null;
   settings: SettingsView | null;
   clearData: ClearDataView | null;
@@ -156,6 +160,9 @@ export function Chrome({
       )}
       {pageMenu && (
         <PageContextMenu view={pageMenu} actions={actions} layout={layout} theme={theme} />
+      )}
+      {bookmarkPanel && (
+        <BookmarkPanel view={bookmarkPanel} actions={actions} layout={layout} theme={theme} />
       )}
       {findOpen && (
         <FindBar state={state} actions={actions} layout={layout} theme={theme} />
@@ -300,7 +307,8 @@ function Toolbar({
     rem * 3.5 -
     (nav ? rem * 3.5 : 0) -
     (record ? rem * 7.25 : 0) -
-    (profiling ? rem * 6.5 : 0);
+    (profiling ? rem * 6.5 : 0) -
+    rem * 1.75;
   return (
     <Box
       style={{
@@ -353,6 +361,7 @@ function Toolbar({
         theme={theme}
         onClick={actions.grab}
       />
+      <ToolbarButton icon="bookmark" enabled rem={rem} theme={theme} onClick={actions.bookmarks} />
       <ToolbarButton icon="more" enabled rem={rem} theme={theme} onClick={actions.tabMenu} />
       {record && <RecordToolbarPill view={record} actions={actions} rem={rem} theme={theme} />}
       {profiling && <ProfilingPill actions={actions} rem={rem} theme={theme} />}

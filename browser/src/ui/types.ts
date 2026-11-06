@@ -82,6 +82,23 @@ export interface PageMenuView {
   items: PageMenuItem[];
 }
 
+export type BookmarkAction = "open" | "open-folder" | "toggle" | "remove" | "add-page" | "add-folder";
+
+export interface BookmarkRowView {
+  id: string;
+  kind: "bookmark" | "folder";
+  title: string;
+  depth: number;
+  expanded: boolean;
+}
+
+export interface BookmarkPanelView {
+  x: number;
+  y: number;
+  shortcut: string;
+  rows: BookmarkRowView[];
+}
+
 import type { SettingGroup } from "shared";
 
 export type { SettingGroup };
@@ -163,6 +180,7 @@ export interface ChromeActions {
   tabClose(id: number): void;
   tabNew(): void;
   tabMenu(): void;
+  bookmarks(): void;
   tabMute(id: number): void;
   grab(): void;
   newTabQuery(text: string): void;
@@ -173,6 +191,7 @@ export interface ChromeActions {
   devtoolsAction(action: "close" | "dock-bottom" | "dock-right"): void;
   devtoolsDividerHover(hovering: boolean): void;
   pageMenuAction(id: string): void;
+  bookmarkAction(action: BookmarkAction, id: string | null): void;
   pageMenuClose(): void;
   pageMenuZoom(direction: ZoomDirection): void;
   permissionDecide(decision: PermissionDecision): void;

@@ -20,12 +20,23 @@ export { setSitePermission, sitePermission } from "./site-permissions";
 export type { SitePermission } from "./site-permissions";
 export { listInstances, removeInstance, upsertInstance } from "./instances";
 export {
+  addBookmarkNode,
+  bookmarksInFolder,
+  containsBookmarkUrl,
+  findBookmarkNode,
+  newBookmarkId,
+  removeBookmarkNode,
+} from "./bookmarks";
+export type { BookmarkFolder, BookmarkItem, BookmarkNode } from "./bookmarks";
+export {
   anonymousId,
+  bookmarkTree,
   lastActiveDay,
   lastLaunchDay,
   lastSeenVersion,
   lastUrl,
   openTabs,
+  setBookmarkTree,
   setLastActiveDay,
   setLastLaunchDay,
   setLastSeenVersion,

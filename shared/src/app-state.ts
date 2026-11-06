@@ -3,6 +3,8 @@ import crypto from "node:crypto";
 import { z } from "zod";
 
 import { store } from "./client";
+import { bookmarkTreeSchema } from "./bookmarks";
+import type { BookmarkNode } from "./bookmarks";
 
 const openTabsSchema = z.object({
   urls: z.array(z.string()),
@@ -44,6 +46,17 @@ export function openTabs(): OpenTabsState | null {
 
 export function setOpenTabs(state: OpenTabsState): void {
   setAppState("tabs-open", JSON.stringify(openTabsSchema.parse(state)));
+}
+
+export function bookmarkTree(): BookmarkNode[] {
+  const raw = getAppState("bookmarks-tree");
+  if (!raw) return [];
+  const parsed = bookmarkTreeSchema.safeParse(JSON.parse(raw));
+  return parsed.success ? parsed.data : [];
+}
+
+export function setBookmarkTree(tree: BookmarkNode[]): void {
+  setAppState("bookmarks-tree", JSON.stringify(bookmarkTreeSchema.parse(tree)));
 }
 
 export function anonymousId(): string {
